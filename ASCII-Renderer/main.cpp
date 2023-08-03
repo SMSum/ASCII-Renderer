@@ -9,16 +9,57 @@
 // Our custom math functions
 #include "calc.h"
 
+// Funny character array for "shading"
+const std::string charString = "@#W$9876543210?!abc;:+=-,._";
+const int totalShades = charString.length();
 // Declaring the screen size, really its the buffer size.
 const int screenWidth = 100;
 const int screenHeight = 100;
+// Initilize the perspective, and tools for translation/rotation
+const int FOV = 60;
+const int rotationSpeed = 1;
+const std::array<std::array<double, 4>, 4> p = perspective(screenWidth, screenHeight, 0.05, 100, FOV);
+const std::array<std::array<double, 4>, 4> l = translate(0, 0, 10);
+const std::array<std::array<double, 4>, 4> r = rotateYXZ(0, 0, 0);
+// Points, Edges, Verticies, and Size
+const double cubeSize = 2.5;
+// Cube Vertexes
+const std::array<std::array<double, 4>, 8> cubePoints = { {
+    vec4(-cubeSize, -cubeSize, -cubeSize),
+    vec4(cubeSize, -cubeSize, -cubeSize),
+    vec4(cubeSize, -cubeSize, cubeSize),
+    vec4(-cubeSize, -cubeSize, cubeSize),
+    vec4(-cubeSize, cubeSize, -cubeSize),
+    vec4(cubeSize, cubeSize, -cubeSize),
+    vec4(cubeSize, cubeSize, cubeSize),
+    vec4(-cubeSize, cubeSize, cubeSize)
+} };
+// Cube Edge Pairs
+const std::vector<std::pair<int, int>> cubeEdges = {
+    {1, 2}, {2, 3}, {3, 4}, {4, 1},
+    {5, 6}, {6, 7}, {7, 8}, {8, 5},
+    {1, 5}, {2, 6}, {3, 7}, {4, 8}
+};
+// Cube Faces
+const std::vector<std::vector<int>> cubeFaces = {
+    {1, 2, 3, 4}, // Bottom face
+    {4, 3, 7, 8}, // Top face
+    {2, 6, 7, 3}, // Front face
+    {8, 7, 6, 5}, // Right face
+    {4, 8, 5, 1}, // Back face
+    {5, 6, 2, 1}  // Left face
+};
+// Light Source Location
+const std::array<double, 3> lightSource = { 0.0, 0.0, -cubeSize * 205.0 };
+
+
 
 // Frame buffer to store the char, position and color.
 std::vector<std::vector<CHAR_INFO>> frameBuffer(screenHeight, std::vector<CHAR_INFO>(screenWidth, { ' ', 7 }));
 // Might need a z-depth buffer so we only render what is close to the camera in depth
 
 // TEMPORARY
-// Points, Edges, Verticies
+
 
 
 // Function to set the cursor position in the console
@@ -79,40 +120,45 @@ void printValue(const std::string& name, double value, int x, int y) {
     }
 }
 
+// BEGIN FUNNY MATH
+
+double calculateShading() {
+    return 1.0;
+}
+
+void drawQuadrilateral() {
+
+}
+
+boolean isPointInQuadrilateral() {
+    return true;
+}
+
+void connectPoints(int i1, int i2, int i3, int i4) {
+
+    std::array<std::array<double, 4>, 4> point1 = mul(p, l);
+    point1 = mul(point1, r);
+    // Print the values of point1
+    for (int i = 0; i < 4; ++i) {
+        for (int j = 0; j < 4; ++j) {
+            std::cout << point1[i][j] << " ";
+        }
+        std::cout << std::endl;
+    }
+    point1 = mul(point1, cubePoints[i1]);
+    std::array<double, 4> result = divW(point1);
+  
+
+}
+
+
 int main() {
     system("cls"); // Clear the screen
     std::cout << "Dont forget to press a key dumbass... \n";
     _getch(); // Wait for key press to start so I can record :)
 
-    std::array<std::array<double, 4>, 4> result1 = mat4x4(); // Identity matrix (by default)
-    std::array<std::array<double, 4>, 4> result2 = mat4x4(false); // Identity matrix
-    std::array<std::array<double, 4>, 4> result3 = mat4x4(true); // Non-identity matrix
-
-    // Output the matrix elements for result1 (identity matrix by default)
-    std::cout << "Resulting matrix 1: " << std::endl;
-    for (int i = 0; i < result1.size(); ++i) {
-        for (int j = 0; j < result1[i].size(); ++j) {
-            std::cout << result1[i][j] << " ";
-        }
-        std::cout << std::endl;
-    }
-
-    // Output the matrix elements for result2 (identity matrix)
-    std::cout << "Resulting matrix 2: " << std::endl;
-    for (int i = 0; i < result2.size(); ++i) {
-        for (int j = 0; j < result2[i].size(); ++j) {
-            std::cout << result2[i][j] << " ";
-        }
-        std::cout << std::endl;
-    }
-
-    // Output the matrix elements for result3 (non-identity matrix)
-    std::cout << "Resulting matrix 3: " << std::endl;
-    for (int i = 0; i < result3.size(); ++i) {
-        for (int j = 0; j < result3[i].size(); ++j) {
-            std::cout << result3[i][j] << " ";
-        }
-        std::cout << std::endl;
+    for (const auto& cubeFace : cubeFaces) {
+        connectPoints(cubeFace[0], cubeFace[1], cubeFace[2], cubeFace[3]);
     }
 
 
