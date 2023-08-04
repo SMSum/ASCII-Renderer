@@ -7,10 +7,10 @@
 std::array<std::array<double, 4>, 4> mat4x4(bool identity = false);
 // m.vec4
 std::array<double, 4> vec4(double x = 0.0, double y = 0.0, double z = 0.0, double w = 1.0);
-// m.mul
+// m.mul 4x4 matrix multiplication
 std::array<std::array<double, 4>, 4> mul(const std::array<std::array<double, 4>, 4>& m1, const std::array<std::array<double, 4>, 4>& m2);
-// m.mul 1x4
-std::array<std::array<double, 4>, 4> mul(const std::array<std::array<double, 4>, 4>& m1, const std::array<double, 4>& m2);
+// m.mul 4x1 matrix-vector multiplication
+std::array<double, 4> mul(const std::array<std::array<double, 4>, 4>& m1, const std::array<double, 4>& v1);
 // m.translate
 std::array<std::array<double, 4>, 4> translate(double x = 0.0, double y = 0.0, double z = 0.0);
 // m.rotationX
@@ -44,8 +44,8 @@ std::array<std::array<double, 3>, 3> sub(const std::array<std::array<double, 3>,
 // m.normalize
 std::array<double, 3> normalize(const std::array<double, 3>& v);
 // m.dot(v1, v2)
-double dot(const std::array<std::array<double, 1>, 3>& v1, const std::array<std::array<double, 1>, 3>& v2);
+double dot(const std::array<double, 4>& v1, const std::array<double, 4>& v2);
 // m.length
-double length(const std::array<std::array<double, 1>, 3>& v);
+double length(const std::array<double, 4>& v);
 
 #endif

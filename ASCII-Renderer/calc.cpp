@@ -22,38 +22,31 @@ std::array<double, 4> vec4(double x, double y, double z, double w) {
     // Create and return the 1D array directly
     return std::array<double, 4>{x, y, z, w};
 }
-// m.mul(m1, m2) matrix multiplication
+// m.mul(m1, m2) 4x4 matrix multiplication
 std::array<std::array<double, 4>, 4> mul(const std::array<std::array<double, 4>, 4>& m1, const std::array<std::array<double, 4>, 4>& m2) {
-    int r1 = m1.size();
-    int r2 = m2.size();
-    int c1 = m1[0].size();
-    int c2 = m2[0].size();
-
     std::array<std::array<double, 4>, 4> temp = mat4x4();
 
-    for (int i = 0; i < r1; ++i) {
-        for (int j = 0; j < c2; ++j) {
-            for (int k = 0; k < c1; ++k) {
+    for (int i = 0; i < 4; ++i) {
+        for (int j = 0; j < 4; ++j) {
+            for (int k = 0; k < 4; ++k) {
                 temp[i][j] += m1[i][k] * m2[k][j];
             }
         }
     }
-        return { {
-            {temp[0][0], temp[1][0], temp[2][0], temp[3][0]}
-        } };
-    
+
+    return temp;
 }
-// m.mul(m1, m2) 4x4 x 1x4 matrix multiplication
-std::array<std::array<double, 4>, 4> mul(const std::array<std::array<double, 4>, 4>& m1, const std::array<double, 4>& m2) {
-    std::array<std::array<double, 4>, 4> result = mat4x4();
+// m.mul(m1, m2) 4x1 matrix-vector multiplication
+std::array<double, 4> mul(const std::array<std::array<double, 4>, 4>& m1, const std::array<double, 4>& v1) {
+    std::array<double, 4> temp = { 0.0 };
 
     for (int i = 0; i < 4; ++i) {
         for (int k = 0; k < 4; ++k) {
-            result[i][0] += m1[i][k] * m2[k];
+            temp[i] += m1[i][k] * v1[k];
         }
     }
 
-    return result;
+    return temp;
 }
 // m.translate(x, y, z) vector translation
 std::array<std::array<double, 4>, 4> translate(double x, double y, double z) {
@@ -212,7 +205,7 @@ std::array<double, 3> normalize(const std::array<double, 3>& v) {
 
     magnitude = std::sqrt(magnitude);
 
-    std::array<double, 3> result;
+    std::array<double, 3> result = {};
     for (int i = 0; i < v.size(); ++i) {
         result[i] = v[i] / magnitude;
     }
@@ -220,18 +213,18 @@ std::array<double, 3> normalize(const std::array<double, 3>& v) {
     return result;
 }
 // m.dot(v1, v2)
-double dot(const std::array<std::array<double, 1>, 3>& v1, const std::array<std::array<double, 1>, 3>& v2) {
+double dot(const std::array<double, 4>& v1, const std::array<double, 4>& v2) {
     double dotProduct = 0.0;
-    for (int i = 0; i < v1.size(); ++i) {
-        dotProduct += v1[i][0] * v2[i][0];
+    for (int i = 0; i < 4; ++i) {
+        dotProduct += v1[i] * v2[i];
     }
     return dotProduct;
 }
 // m.length(v)
-double length(const std::array<std::array<double, 1>, 3>& v) {
+double length(const std::array<double, 4>& v) {
     double magnitudeSquared = 0.0;
-    for (int i = 0; i < v.size(); ++i) {
-        magnitudeSquared += v[i][0] * v[i][0];
+    for (int i = 0; i < 4; ++i) {
+        magnitudeSquared += v[i] * v[i];
     }
     return std::sqrt(magnitudeSquared);
 }
