@@ -1,5 +1,5 @@
-#define NOMINMAX
-
+#define NOMINMAX 
+//Windows.h causes problems trying to use min/max. 
 #include <iostream>
 #include <iomanip>
 #include <string>
@@ -15,19 +15,20 @@
 #include "calc.h"
 
 // Funny character array for "shading"
+//@#W$9876543210?!abc;:+=-,._
 const std::string charString = "@#W$9876543210?!abc;:+=-,._";
 const int totalShades = charString.length();
 // Declaring the screen size, really its the buffer size.
-const int screenWidth = 200;
-const int screenHeight = 200;
+const int screenWidth = 300;
+const int screenHeight = 180;
 // Initilize the perspective, and tools for translation/rotation
-const int FOV = 60;
-const int rotationSpeed = 1;
+const int FOV = 90;
+const double rotationSpeed = 0.1;
 const std::array<std::array<double, 4>, 4> p = perspective(screenWidth, screenHeight, 0.05, 100, FOV);
-const std::array<std::array<double, 4>, 4> l = translate(0, 0, 10);
+std::array<std::array<double, 4>, 4> l = translate(0, 0, 10);
 std::array<std::array<double, 4>, 4> r = rotateYXZ(0, 0, 0);
 // Points, Edges, Verticies, and Size
-const double cubeSize = 2;
+const double cubeSize = 3;
 // Cube Vertexes
 const std::array<std::array<double, 4>, 8> cubePoints = { {
     vec4(-cubeSize, -cubeSize, -cubeSize),
@@ -55,17 +56,16 @@ const std::vector<std::vector<int>> cubeFaces = {
     {4, 5, 1, 0}  // Left face
 };
 // Light Source Location
-const std::array<double, 3> lightSource = { 0.0, 0.0, -cubeSize * 205.0 };
-
-
-
+std::array<double, 3> lightSource = { 0.0, 0.0, -cubeSize * 4 };
 // Frame buffer to store the char, position and color.
 std::vector<std::vector<CHAR_INFO>> frameBuffer(screenHeight, std::vector<CHAR_INFO>(screenWidth, { ' ', 7 }));
 
 // NOTES
 // Might need a z-depth buffer so we only render what is close to the camera in depth
+// Revamp lighting system to be "per pixel"
 // Might need to convert from double to float for accuracy reasons, we're missing 8 decimal places lol
 
+// TESTING
 
 // Function to set the cursor position in the console
 void setCursorPosition(int x, int y) {
@@ -74,15 +74,26 @@ void setCursorPosition(int x, int y) {
     coord.Y = y;
     SetConsoleCursorPosition(GetStdHandle(STD_OUTPUT_HANDLE), coord);
 }
-
 // Function to draw a character at a specific position with a specific color to the framebuffer
-void drawToBuffer(int x, int y, char ch, double shading) {
+void drawToBuffer(int x, int y, char ch, double color) {
     if (x >= 0 && x < screenWidth && y >= 0 && y < screenHeight) {
         frameBuffer[y][x].Char.AsciiChar = ch;
-        frameBuffer[y][x].Attributes = 7;
+        frameBuffer[y][x].Attributes = color;
     }
 }
+// Simple function to make debugging values in real time easier.
+void printValue(const std::string& name, double value, int x, int y) {
+    // Break the string into Chars to place into buffer
+    for (size_t i = 0; i < name.size(); i++) {
+        drawToBuffer(x + i, y, name[i], 7); // Print each character of the name
+    }
 
+    // Convert the value to a string and print it at the specified x, y position
+    std::string valueString = std::to_string(value);
+    for (size_t i = 0; i < valueString.size(); i++) {
+        drawToBuffer(x + name.size() + 1 + i, y, valueString[i], 7);
+    }
+}
 // Function to render the entire frame from the framebuffer using the Windows Console API
 void renderFrame() {
     HANDLE hConsole = GetStdHandle(STD_OUTPUT_HANDLE);
@@ -100,8 +111,7 @@ void renderFrame() {
 
     WriteConsoleOutput(hConsole, tempBuffer.data(), bufferSize, bufferCoord, &writeRegion);
 }
-
-// Dump the frame buffer for the next frame
+// Clear the frame buffer for the next frame
 void clearFramebuffer() {
     for (auto& row : frameBuffer) {
         for (auto& cell : row) {
@@ -110,33 +120,25 @@ void clearFramebuffer() {
         }
     }
 }
+// Takes shading and outputs the correct character for the value
+char calculateCharFromShading(double shading) {
 
-// Simple function to make debugging values in real time easier.
-void printValue(const std::string& name, double value, int x, int y) {
-    // Break the string into Chars to place into buffer
-    for (size_t i = 0; i < name.size(); i++) {
-        drawToBuffer(x + i, y, name[i], 1); // Print each character of the name
-    }
+    char resultChar = charString[static_cast<int>(shading * totalShades)];
 
-    // Convert the value to a string and print it at the specified x, y position
-    std::string valueString = std::to_string(value);
-    for (size_t i = 0; i < valueString.size(); i++) {
-        drawToBuffer(x + name.size() + 1 + i, y, valueString[i], 1);
-    }
+    return resultChar;
 }
 
-// BEGIN FUNNY MATH
-
+// Rough calculation of how "shaded" a normalized face is
 double calculateShading(const std::array<double, 4>& normal, const std::array<double, 4>& lightVector) {
     double dotProduct = dot(normal, lightVector);
     double normalLength = length(normal);
     double lightVectorLength = length(lightVector);
     double angle = std::acos(dotProduct / (normalLength * lightVectorLength));
-
     double shading = std::cos(angle);
+    printValue("Shading", shading, 0, 4);
     return shading;
 }
-
+// Check if we are in or out
 bool isPointInQuadrilateral(double x, double y, double x1, double y1, double x2, double y2, double x3, double y3, double x4, double y4) {
     // Get signed area of square (2 triangles) to check if x,y is inside or outside
     auto sign = [](double p1x, double p1y, double p2x, double p2y, double p3x, double p3y) {
@@ -150,7 +152,7 @@ bool isPointInQuadrilateral(double x, double y, double x1, double y1, double x2,
 
     return b1 == b2 && b2 == b3 && b3 == b4;
 }
-
+// Scanline fill our faces
 void drawQuadrilateral(double x1, double y1, double x2, double y2, double x3, double y3, double x4, double y4, double shading) {
     // Find our largest and smallest X, Y
     double minX = std::min({ x1, x2, x3, x4 });
@@ -173,15 +175,12 @@ void drawQuadrilateral(double x1, double y1, double x2, double y2, double x3, do
                 x_right = std::max(x_right, x);
             }
         }
-
         for (double x = x_left; x <= x_right; ++x) {
-            drawToBuffer(x, y, 'x', shading);
+            drawToBuffer(x, y, calculateCharFromShading(shading), 7);
         }
     }
 }
-
-
-
+// Connect our points into edges to scanline fill
 void connectPoints(int i1, int i2, int i3, int i4) {
     // vertex normalization from homogenous to cartesian
     std::array<std::array<double, 4>, 4> point1 = mul(p, l);
@@ -263,7 +262,7 @@ void connectPoints(int i1, int i2, int i3, int i4) {
         // Convert our Normals into Vectors
         std::array<double, 4> faceNormalVec4 = vec4(faceNormal[0], faceNormal[1], faceNormal[2]);
         std::array<double, 4> lightVectorVec4 = vec4(lightVector[0], lightVector[1], lightVector[2]);
-        
+
         // Calculate shading "value"
         double shading = calculateShading(faceNormalVec4, lightVectorVec4);
 
@@ -274,23 +273,20 @@ void connectPoints(int i1, int i2, int i3, int i4) {
     }
 }
 
-
 int main() {
     system("cls"); // Clear the screen
     std::cout << "Dont forget to press a key dumbass... \n";
     _getch(); // Wait for key press to start so I can record :)
-
-    for (const auto& cubeFace : cubeFaces) {
-        connectPoints(cubeFace[0], cubeFace[1], cubeFace[2], cubeFace[3]);
-    }
-
+    
     // Initialing values for FPS calculation
     int frameCount = 0;
     auto startTime = std::chrono::high_resolution_clock::now();
 
 
     // Begin main render loop
-    for (int frame = 0; frame < 120; frame++) {
+    while (true) {
+
+        r = mul(r, rotateYXZ(-rotationSpeed, rotationSpeed, 0));
         for (const auto& cubeFace : cubeFaces) {
             connectPoints(cubeFace[0], cubeFace[1], cubeFace[2], cubeFace[3]);
         }
@@ -306,17 +302,78 @@ int main() {
 
         // Draw the FPS at position (1, 1) with white color (15)
         printValue("FPS: ", fps, 0, 0);
+        printValue("Light X", lightSource[0], 0, 1);
+        printValue("Light Y", lightSource[1], 0, 2);
+        printValue("Light Z", lightSource[2], 0, 3);
         // Spin the cube
-        r = mul(r, rotateYXZ(-rotationSpeed, rotationSpeed, 0));
+       
         // Render the frame directly to the console
         renderFrame();
         // Clear buffer
         clearFramebuffer();
+        if (_kbhit()) {
+            char key = _getch();
+            if (key == 'q' || key == 'Q') {
+                lightSource[1] -= 1.0 * cubeSize; // -Y
+            }
+            if (key == 'e' || key == 'E') {
+                lightSource[1] += 1.0 * cubeSize; // +Y
+            }
+            if (key == 'w' || key == 'W') {
+                lightSource[0] -= 1.0 * cubeSize; // -X
+            }
+            if (key == 's' || key == 'S') {
+                lightSource[0] += 1.0 * cubeSize; // +X
+            }
+            if (key == 'a' || key == 'A') {
+                lightSource[2] -= 1.0 * cubeSize; // -Z
+            }
+            if (key == 'd' || key == 'D') {
+                lightSource[2] += 1.0 * cubeSize; // +Z
+            }
+        }
 
-        // Slow down MF I dont need 9 million FPS.
-        std::this_thread::sleep_for(std::chrono::milliseconds(50));
+
+        // Input Testing
+        /*
+        if (_kbhit()) {
+            char key = _getch();
+            if (key == 'q' || key == 'Q') {
+                l = mul(l, translate(0, 0, -rotationSpeed));
+            }
+            if (key == 'e' || key == 'E') {
+                l = mul(l, translate(0, 0, rotationSpeed));
+            }
+            if (key == 'w' || key == 'W') {
+                l = mul(l, translate(0, -rotationSpeed, 0));
+            }
+            if (key == 's' || key == 'S') {
+                l = mul(l, translate(0, rotationSpeed, 0));
+            }
+            if (key == 'a' || key == 'A') {
+                l = mul(l, translate(rotationSpeed, 0, 0));
+            }
+            if (key == 'd' || key == 'D') {
+                l = mul(l, translate(-rotationSpeed, 0, 0));
+            }
+            if (key == 'a' || key == 'A') {
+                l = mul(l, translate(rotationSpeed, 0, 0));
+            }
+            if (key == 'l' || key == 'L') {
+                r = mul(r, rotateYXZ(rotationSpeed, 0, 0));
+            }
+            if (key == 'o' || key == 'O') {
+                r = mul(r, rotateYXZ(-rotationSpeed, 0, 0));
+            }
+            if (key == 'k' || key == 'K') {
+                r = mul(r, rotateYXZ(0, rotationSpeed, 0));
+            }
+            if (key == ';' || key == ':') {
+                r = mul(r, rotateYXZ(0, -rotationSpeed, 0));
+            }
+        }
+        */
     }
-
-
+   
     return 0;
 }

@@ -172,7 +172,7 @@ std::array<double, 4> divW(const std::array<double, 4>& vec) {
     return temp;
 }
 // m.cross4(x1, y1, x2, y2, x3, y3, x4, y4)
-int cross4(double x1, double y1, double x2, double y2, double x3, double y3, double x4, double y4) {
+double cross4(double x1, double y1, double x2, double y2, double x3, double y3, double x4, double y4) {
     return (x2 - x1) * (y3 - y1) - (y2 - y1) * (x3 - x1);
 }
 // m.cross2(v1, v2)

@@ -36,7 +36,7 @@ std::array<std::array<double, 4>, 4> perspective(double sizeX, double sizeY, dou
 // m.divW
 std::array<double, 4> divW(const std::array<double, 4>& vec);
 // m.cross4
-int cross4(double x1, double y1, double x2, double y2, double x3, double y3, double x4, double y4);
+double cross4(double x1, double y1, double x2, double y2, double x3, double y3, double x4, double y4);
 // m.cross2
 std::array<double, 3> cross2(const std::array<double, 3>& v1, const std::array<double, 3>& v2);
 // m.sub
