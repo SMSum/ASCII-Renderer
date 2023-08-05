@@ -31,13 +31,14 @@ std::array<std::array<float, 4>, 4> mul(const std::array<std::array<float, 4>, 4
         {0.0, 0.0, 0.0, 0.0}
     } };
 
-    for (int i = 0; i < 4; ++i) {
-        for (int j = 0; j < 4; ++j) {
-            for (int k = 0; k < 4; ++k) {
-                temp[i][j] += m1[i][k] * m2[k][j];
-            }
-        }
+  for (int i = 0; i < 4; ++i) {
+    for (int j = 0; j < 4; ++j) {
+        temp[i][j] = m1[i][0] * m2[0][j] +
+                     m1[i][1] * m2[1][j] +
+                     m1[i][2] * m2[2][j] +
+                     m1[i][3] * m2[3][j];
     }
+}
 
     return temp;
 }

@@ -11,6 +11,7 @@
 #include <Windows.h>
 #include <conio.h> 
 #include <cmath>
+#include <limits>
 
 // Our custom math functions
 #include "calc.h"
@@ -18,19 +19,20 @@
 
 // Funny character array for "shading"
 //@#W$9876543210?!abc;:+=-,._
-const std::string charString = "@#W$9876543210?!abc;:+=-,._";
+const std::string charString = "_.,-=+:;cba!?0123456789$W#@";
 const int totalShades = charString.length();
 // Declaring the screen size, really its the buffer size.
 const int screenWidth = 300;
 const int screenHeight = 180;
 // Frame buffer to store the char, position and color.
 std::vector<CHAR_INFO> frameBuffer(screenWidth* screenHeight, { ' ', 7 });
-
+// Z-Buffer for each pixel position
+std::vector<float> zBuffer(screenWidth* screenHeight, std::numeric_limits<float>::max());
 // Initilize the perspective, and tools for translation/rotation
 const int FOV = 60;
-const float rotationSpeed = 2;
+const float rotationSpeed = 0.1;
 const float modelScale = 40.0f;
-const std::array<std::array<float, 4>, 4> p = perspective(screenWidth, screenHeight, 0.05f, 200, FOV);
+const std::array<std::array<float, 4>, 4> p = perspective(screenWidth, screenHeight, 0.05f, 500, FOV);
 std::array<std::array<float, 4>, 4> l = translate(10, -1, 15);
 std::array<std::array<float, 4>, 4> r = rotateYXZ(-rotationSpeed, rotationSpeed, 0);
 
@@ -128,6 +130,7 @@ void renderFrame() {
     WriteConsoleOutput(hConsole, frameBuffer.data(), bufferSize, bufferCoord, &writeRegion);
 
     std::fill(frameBuffer.begin(), frameBuffer.end(), CHAR_INFO{ ' ', 7 });
+    std::fill(zBuffer.begin(), zBuffer.end(), std::numeric_limits<float>::max());
 }
 // Define to avoid constantly creating&calc
 std::array<std::array<float, 4>, 4> mainMatrix = mul(p, l);
@@ -159,10 +162,7 @@ void processPolygon() {
         float y3 = point3_normalized[1];
         float z3 = 1 - point3_normalized[2];
 
-        // Perform the back-face culling check
-        if (((x2 - x1) * (y3 - y1) - (y2 - y1) * (x3 - x1)) > 0) {
-            continue;
-        }
+        //implement z-depth buffer instead of our dogwater backface culling shit
 
         // Perform the viewport transformation
         if (x1 >= -1 && x1 <= 1 && y1 >= -1 && y1 <= 1 && z1 <= 0 &&
@@ -181,30 +181,28 @@ void processPolygon() {
             float minY = std::min({ y1, y2, y3 });
             float maxY = std::max({ y1, y2, y3 });
 
-            for (float y = minY; y <= maxY; ++y) {
-                float x_left = maxX;
-                float x_right = minX;
+            for (int y = minY; y <= maxY; ++y) {
+                float alpha_denom = (y2 - y3) * (x1 - x3) + (x3 - x2) * (y1 - y3);
+                float beta_denom = (y2 - y3) * (x1 - x3) + (x3 - x2) * (y1 - y3);
 
-                for (float x = minX; x <= maxX; ++x) {
-                    float d1 = (x - x2) * (y1 - y2) - (x1 - x2) * (y - y2);
-                    float d2 = (x - x3) * (y2 - y3) - (x2 - x3) * (y - y3);
-                    float d3 = (x - x1) * (y3 - y1) - (x3 - x1) * (y - y1);
+                for (int x = minX; x <= maxX; ++x) {
+                    float alpha = ((y2 - y3) * (x - x3) + (x3 - x2) * (y - y3)) / alpha_denom;
+                    float beta = ((y3 - y1) * (x - x3) + (x1 - x3) * (y - y3)) / beta_denom;
+                    float gamma = 1.0f - alpha - beta;
 
-                    // Check if inside the polygon so we don't draw outside the shape
-                    if ((d1 >= 0 && d2 >= 0 && d3 >= 0) || (d1 <= 0 && d2 <= 0 && d3 <= 0)) {
-                        x_left = std::min(x_left, x);
-                        x_right = std::max(x_right, x);
+                    if (alpha >= 0 && beta >= 0 && gamma >= 0) {
+                        int index = y * screenWidth + x;
+                            float interpolatedDepth = alpha * z1 + beta * z2 + gamma * z3;
+                            if (interpolatedDepth < zBuffer[index]) {
+                                zBuffer[index] = interpolatedDepth;
+                                if (index >= 0 && index < frameBuffer.size()) {
+                                    float normalizedDepth = interpolatedDepth * 2200.0f;
+
+                                    frameBuffer[index].Char.AsciiChar = charString[static_cast<int>(std::abs(normalizedDepth))];
+                                    frameBuffer[index].Attributes = 7;
+                            }
+                        }
                     }
-                }
-
-                for (float x = x_left; x <= x_right; ++x) {
-                    // if its within bounds, write to buffer
-                    if (x >= 0 && x < screenWidth && y >= 0 && y < screenHeight) {
-                        int index = static_cast<int>(y) * screenWidth + static_cast<int>(x);
-                        frameBuffer[index].Char.AsciiChar = '@';
-                        frameBuffer[index].Attributes = 7;
-                    }
-
                 }
             }
 
@@ -219,7 +217,7 @@ int main() {
     
     std::cout << "Loading Model... \n";
     // Call to "import" and populate our verticies/faces storage
-    importModel("stanford-bunny.obj", vertices, faces, modelScale);
+    importModel("bunny.txt", vertices, faces, modelScale);
     // Call to create polygons and populate actualFaces;
     createActualFaces(vertices, faces, actualFaces);
 
@@ -227,7 +225,19 @@ int main() {
     std::cout << "Model loaded! Press a key to begin the render... \n";
     _getch(); // Wait for key press to start so I can record :)
 
+    // Initialing values for FPS calculation
+    int frameCount = 0;
+    auto startTime = std::chrono::high_resolution_clock::now();
+
     while (true) {
+        frameCount++;
+        auto currentTime = std::chrono::high_resolution_clock::now();
+        auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(currentTime - startTime).count();
+
+        double fps = static_cast<double>(frameCount) / (duration / 1000.0);
+        frameCount = 0;
+        startTime = currentTime;
+        printValue("FPS: ", fps, 0, 0);
         processPolygon();
     }
  
