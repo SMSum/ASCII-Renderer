@@ -30,7 +30,7 @@ std::vector<CHAR_INFO> frameBuffer(screenWidth* screenHeight, { ' ', 7 });
 std::vector<float> zBuffer(screenWidth* screenHeight, std::numeric_limits<float>::max());
 // Initilize the perspective, and tools for translation/rotation
 const int FOV = 60;
-const float rotationSpeed = 0.1;
+const float rotationSpeed = 0.25;
 const float modelScale = 40.0f;
 const std::array<std::array<float, 4>, 4> p = perspective(screenWidth, screenHeight, 0.05f, 500, FOV);
 std::array<std::array<float, 4>, 4> l = translate(10, -1, 15);
@@ -40,9 +40,10 @@ std::array<std::array<float, 4>, 4> r = rotateYXZ(-rotationSpeed, rotationSpeed,
 struct Vertex { 
     float x, y, z;
 };
-struct Face { //Define the outline of a Face
+struct Face { 
     int v1, v2, v3;
 };
+
 // Create storage for Verticies/Faces
 std::vector<Vertex> vertices;
 std::vector<Face> faces;
@@ -89,13 +90,35 @@ void createActualFaces(const std::vector<Vertex>& vertices, const std::vector<Fa
         std::vector<Vertex> actualFace;
 
         // Retrieve vertices using the indices from the face definition
-        actualFace.push_back(vertices[face.v1 - 1]);
-        actualFace.push_back(vertices[face.v2 - 1]);
-        actualFace.push_back(vertices[face.v3 - 1]);
+        Vertex v1 = vertices[face.v1 - 1];
+        Vertex v2 = vertices[face.v2 - 1];
+        Vertex v3 = vertices[face.v3 - 1];
+
+        // Calculate face normal
+        Vertex edge1 = { v2.x - v1.x, v2.y - v1.y, v2.z - v1.z };
+        Vertex edge2 = { v3.x - v1.x, v3.y - v1.y, v3.z - v1.z };
+        // Cross product
+        Vertex temp;
+        temp.x = edge1.y * edge2.z - edge1.z * edge2.y;
+        temp.y = edge1.z * edge2.x - edge1.x * edge2.z;
+        temp.z = edge1.x * edge2.y - edge1.y * edge2.x;
+        // Normalize
+        float length = std::sqrt(temp.x * temp.x + temp.y + temp.z * temp.z);
+        Vertex normal;
+        normal.x = temp.x / length;
+        normal.y = temp.y / length;
+        normal.z = temp.z / length;
+
+        // Store vertices and face normal in actualFace
+        actualFace.push_back(v1);
+        actualFace.push_back(v2);
+        actualFace.push_back(v3);
+        actualFace.push_back(normal);
 
         actualFaces.push_back(actualFace);
     }
 }
+
 
 // RENDERING
 // Function to draw a character at a specific position with a specific color to the framebuffer
@@ -142,6 +165,7 @@ void processPolygon() {
         const Vertex& vertex1 = actualFace[0];
         const Vertex& vertex2 = actualFace[1];
         const Vertex& vertex3 = actualFace[2];
+        const Vertex& normal = actualFace[3];
 
         // Calculate point vectors and normalized values for specific vertices
         std::array<float, 4> point1_vec4 = mul(mainMatrix, vec4(static_cast<float>(vertex1.x), static_cast<float>(vertex1.y), static_cast<float>(vertex1.z)));
@@ -196,9 +220,9 @@ void processPolygon() {
                             if (interpolatedDepth < zBuffer[index]) {
                                 zBuffer[index] = interpolatedDepth;
                                 if (index >= 0 && index < frameBuffer.size()) {
-                                    float normalizedDepth = interpolatedDepth * 2200.0f;
+                                    float normalizedDepth = interpolatedDepth;
 
-                                    frameBuffer[index].Char.AsciiChar = charString[static_cast<int>(std::abs(normalizedDepth))];
+                                    frameBuffer[index].Char.AsciiChar = charString[1];
                                     frameBuffer[index].Attributes = 7;
                             }
                         }
@@ -218,7 +242,7 @@ int main() {
     std::cout << "Loading Model... \n";
     // Call to "import" and populate our verticies/faces storage
     importModel("bunny.txt", vertices, faces, modelScale);
-    // Call to create polygons and populate actualFaces;
+    // Call to create polygons + normals from vertices and faces.
     createActualFaces(vertices, faces, actualFaces);
 
     system("cls"); // Clear the screen

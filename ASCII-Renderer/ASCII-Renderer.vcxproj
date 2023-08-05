@@ -104,6 +104,15 @@
       <SDLCheck>true</SDLCheck>
       <PreprocessorDefinitions>_DEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
+      <LanguageStandard>stdcpp20</LanguageStandard>
+      <Optimization>MaxSpeed</Optimization>
+      <BasicRuntimeChecks>Default</BasicRuntimeChecks>
+      <FavorSizeOrSpeed>Speed</FavorSizeOrSpeed>
+      <InlineFunctionExpansion>AnySuitable</InlineFunctionExpansion>
+      <IntrinsicFunctions>true</IntrinsicFunctions>
+      <FloatingPointModel>Fast</FloatingPointModel>
+      <SupportJustMyCode>false</SupportJustMyCode>
+      <SYCLOptimization>MaxSpeed</SYCLOptimization>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
@@ -128,10 +137,16 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="calc.cpp" />
-    <ClCompile Include="main.cpp" />
+    <ClCompile Include="obj_render.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="calc.h" />
+  </ItemGroup>
+  <ItemGroup>
+    <Object Include="..\..\..\..\Downloads\stanford-bunny.obj">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</ExcludedFromBuild>
+      <FileType>Document</FileType>
+    </Object>
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

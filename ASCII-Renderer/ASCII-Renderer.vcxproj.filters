@@ -13,12 +13,15 @@
       <UniqueIdentifier>{67DA6AB6-F800-4c08-8B7A-83BB121AAD01}</UniqueIdentifier>
       <Extensions>rc;ico;cur;bmp;dlg;rc2;rct;bin;rgs;gif;jpg;jpeg;jpe;resx;tiff;tif;png;wav;mfcribbon-ms</Extensions>
     </Filter>
+    <Filter Include="Models">
+      <UniqueIdentifier>{73890d31-1b08-43c3-9f58-1ed717cb6f01}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="main.cpp">
+    <ClCompile Include="calc.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="calc.cpp">
+    <ClCompile Include="obj_render.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>
@@ -26,5 +29,10 @@
     <ClInclude Include="calc.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+  </ItemGroup>
+  <ItemGroup>
+    <Object Include="..\..\..\..\Downloads\stanford-bunny.obj">
+      <Filter>Models</Filter>
+    </Object>
   </ItemGroup>
 </Project>
