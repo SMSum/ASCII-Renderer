@@ -11,6 +11,11 @@ struct Face {
     int v1, v2, v3;
 };
 
+struct Ray {
+    Vertex origin;
+    Vertex direction;
+};
+
 // m.mat4x4
 std::array<std::array<float, 4>, 4> mat4x4(bool identity = false);
 // m.vec4

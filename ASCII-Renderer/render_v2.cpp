@@ -26,11 +26,12 @@ std::vector<float> zBuffer(screenWidth* screenHeight, std::numeric_limits<float>
 
 // Funny character array for "shading"
 //@#W$9876543210?!abc;:+=-,._
+//_.,-=+:;cba!?0123456789$W#@
 const std::string charString = "_.,-=+:;cba!?0123456789$W#@";
 const int totalShades = charString.length();
 
 // Camera location/viewport
-Vertex cameraPosition = { 0.0f, 0.0f, 5.0f }; // Example camera position in world space
+Vertex cameraPosition = { 0.0f, 0.0f, 5.0f }; // Camera position in world space
 Vertex targetPosition = { 0.0f, 0.0f, 0.0f };  // Point the camera is looking at
 Vertex upVector = { 0.0f, 1.0f, 0.0f };       // Up direction
 
@@ -38,13 +39,15 @@ Vertex upVector = { 0.0f, 1.0f, 0.0f };       // Up direction
 const int FOV = 10;
 const float rotationSpeed = 0.25;
 const std::array<std::array<float, 4>, 4> p = perspective(screenWidth, screenHeight, 0.05f, 100, FOV);
+// Move camera in 3D space
 std::array<std::array<float, 4>, 4> l = translate(0, 0, 0);
+// Default to 0,0,0 since we change in real time now.
 std::array<std::array<float, 4>, 4> r = rotateYXZ(0, 0, 0);
 
 
 // Create storage for Verticies/Faces
-const float modelScale = 2.0f;
-std::array<std::array<float, 4>, 4> modelTranslate = translate(0, 0, 50);
+const float modelScale = 60.0f;
+std::array<std::array<float, 4>, 4> modelTranslate = translate(0, 0, 25);
 std::vector<Vertex> vertices;
 std::vector<Face> faces;
 std::vector<std::vector<Vertex>> actualFaces;
@@ -154,7 +157,7 @@ void renderFrame() {
     std::fill(frameBuffer.begin(), frameBuffer.end(), CHAR_INFO{ ' ', 7 });
     std::fill(zBuffer.begin(), zBuffer.end(), std::numeric_limits<float>::max());
 }
-
+// Camera position and model trans/rot
 std::array<std::array<float, 4>, 4> lookAt(const Vertex& eye, const Vertex& target, const Vertex& up) {
     Vertex forward = normalize(Vertex{ target.x - eye.x, target.y - eye.y, target.z - eye.z });
     Vertex right = normalize(cross(up, forward));
@@ -169,10 +172,48 @@ std::array<std::array<float, 4>, 4> lookAt(const Vertex& eye, const Vertex& targ
     return viewMatrix;
 }
 
-//Calculate outside.
+// Calculate outside.
 std::array<std::array<float, 4>, 4> mainMatrix = mul(p, l);
 std::array<std::array<float, 4>, 4> inputMatrix = mul(lookAt(cameraPosition, targetPosition, upVector), mainMatrix);
 std::array<std::array<float, 4>, 4> modelMatrix = mul(modelTranslate, r);
+
+// RAY TRACING FUNNY MATH
+Ray generateRayFromPixel(int pixelX, int pixelY) {
+    // Convert from pixel to NDC coordinates
+    float ndcX = 2.0f * static_cast<float>(pixelX) / screenWidth - 1.0f;
+    float ndcY = 1.0f - 2.0f * static_cast<float>(pixelY) / screenHeight;
+    // We make our view matrix
+
+    Vertex rayDirection;
+    rayDirection.x = inputMatrix[0][0] * ndcX + inputMatrix[0][1] * ndcY + inputMatrix[0][2];
+    rayDirection.y = inputMatrix[1][0] * ndcX + inputMatrix[1][1] * ndcY + inputMatrix[1][2];
+    rayDirection.z = inputMatrix[2][0] * ndcX + inputMatrix[2][1] * ndcY + inputMatrix[2][2];
+
+    
+
+    return { cameraPosition, rayDirection };
+}
+
+bool intersectRayTriangle(const Ray& ray, const std::array<float, 4>& v0, const std::array<float, 4>& v1, const std::array<float, 4>& v2, const Vertex& normal, float& t) {
+    const float EPSILON = 0.0001f;
+
+    // Compute the denominator of the ray-plane intersection equation
+    float denom = dot(normal, ray.direction);
+
+    // Check if ray and triangle are parallel (or nearly parallel)
+    if (std::abs(denom) < EPSILON)
+        return false;
+
+    // Compute the intersection point's parameter t
+    t = dot(Vertex(v0[0] - ray.origin.x, v0[1] - ray.origin.y, v0[2] - ray.origin.z), normal) / denom;
+
+    // Check if the intersection point is behind the ray's origin
+    if (t < 0)
+        return false;
+
+    return true;
+}
+
 void processPolygon() {
     modelMatrix = mul(modelMatrix, rotateYXZ(-rotationSpeed, rotationSpeed, 0));
 
@@ -186,6 +227,7 @@ void processPolygon() {
         Vertex rotatedVertex1 = mul(modelMatrix, vertex1);
         Vertex rotatedVertex2 = mul(modelMatrix, vertex2);
         Vertex rotatedVertex3 = mul(modelMatrix, vertex3);
+        Vertex rotatedNormal  = mul(modelMatrix, normal);
 
         // Calculate point vectors and normalized values for specific vertices
         std::array<float, 4> point1_vec4 = { rotatedVertex1.x, rotatedVertex1.y, rotatedVertex1.z, 1.0f };
@@ -235,9 +277,18 @@ void processPolygon() {
                     float interpolatedDepth = alpha * z1 + beta * z2 + gamma * z3;
                     if (interpolatedDepth < zBuffer[index]) {
                         zBuffer[index] = interpolatedDepth;
-
-                            frameBuffer[index].Char.AsciiChar = 'x';
+                           // frameBuffer[index].Char.AsciiChar = '.';
                             frameBuffer[index].Attributes = 7;
+                            //frameBuffer[index].Char.AsciiChar = 'x';
+                            Ray ray = generateRayFromPixel(x, y);
+                            float t;
+                            if (intersectRayTriangle(ray, point1_normalized, point2_normalized, point3_normalized, rotatedNormal, t)) {
+                                
+                                int tIndex = static_cast<int>(std::min(std::max(t, 0.0f), static_cast<float>(charString.size() - 1)));
+                                frameBuffer[index].Char.AsciiChar = charString[tIndex];
+                            }
+
+
                         }
                     }
                 }
@@ -250,7 +301,7 @@ void processPolygon() {
 int main() {
     std::cout << "Loading Model... \n";
     // Call to "import" and populate our verticies/faces storage
-    importModel("teapot.obj", vertices, faces, modelScale);
+    importModel("bunny.txt", vertices, faces, modelScale);
     // Call to create polygons + normals from vertices and faces.
     createActualFaces(vertices, faces, actualFaces);
 
@@ -258,7 +309,7 @@ int main() {
     std::cout << "Model loaded! Press a key to begin the render... \n";
     _getch(); // Wait for key press to start so I can record :)
 
-    //processPolygon();
+   // processPolygon();
 
     
     // Initialing values for FPS calculation

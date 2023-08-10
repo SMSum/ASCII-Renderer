@@ -45,13 +45,17 @@ std::array<std::array<float, 4>, 4> mul(const std::array<std::array<float, 4>, 4
 }
 // m.mul(m1, m2) 4x1 matrix-vector multiplication
 std::array<float, 4> mul(const std::array<std::array<float, 4>, 4>& m1, const std::array<float, 4>& v1) {
-    std::array<float, 4> temp = { 0.0 };
+    const float* matrix0 = m1[0].data();
+    const float* matrix1 = m1[1].data();
+    const float* matrix2 = m1[2].data();
+    const float* matrix3 = m1[3].data();
 
-    for (int i = 0; i < 4; ++i) {
-        for (int k = 0; k < 4; ++k) {
-            temp[i] += m1[i][k] * v1[k];
-        }
-    }
+    std::array<float, 4> temp = {
+        matrix0[0] * v1[0] + matrix0[1] * v1[1] + matrix0[2] * v1[2] + matrix0[3] * v1[3],
+        matrix1[0] * v1[0] + matrix1[1] * v1[1] + matrix1[2] * v1[2] + matrix1[3] * v1[3],
+        matrix2[0] * v1[0] + matrix2[1] * v1[1] + matrix2[2] * v1[2] + matrix2[3] * v1[3],
+        matrix3[0] * v1[0] + matrix3[1] * v1[1] + matrix3[2] * v1[2] + matrix3[3] * v1[3]
+    };
 
     return temp;
 }
